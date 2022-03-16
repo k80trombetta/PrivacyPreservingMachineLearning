@@ -1,0 +1,180 @@
+# Original file written in Google Colab
+# https://colab.research.google.com/drive/148jU4zDtjGzvaaS5sadZBaIO5KS2qShu#scrollTo=mEh-e3gGyS_z
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
+
+
+# returns list of lists of tuples for each process' -> [  [ (teacher/student label, score), ... ], ...  ]
+def getUnsortedScoresWithLabels(teachers, processes):
+  all_processes_unsorted_scores_with_labels = []
+  for process in processes:
+    unsorted_scores_with_labels = []
+    for i in range(len(teachers)):
+      unsorted_scores_with_labels.append((teachers[i], process[i]))
+    all_processes_unsorted_scores_with_labels.append(unsorted_scores_with_labels)
+  return all_processes_unsorted_scores_with_labels
+
+
+
+# returns list of lists of tuples for each process' sorted in descending order of process' scores -> [  [ (teacher/student label, score), ... ], ...  ]
+def getSortedScoresWithLabels(processes):
+  all_processes_sorted_scores = []
+  for process in processes:
+    copied_scores = process.copy()
+    copied_scores.sort(key=lambda x:x[1], reverse=True)
+    all_processes_sorted_scores.append(copied_scores)
+  return all_processes_sorted_scores
+
+
+
+# returns list of lists of labels in descending order of process' scores -> [  [ label, ... ], ...  ]
+def getProcessesOrderedLabels(processes):
+  all_processes_ordered_labels = []
+  for process in processes:
+    labels = [label[0] for label in process]
+    all_processes_ordered_labels.append(labels)
+  return all_processes_ordered_labels
+
+
+
+# prints process number along with their sorted tuples of labels and scores
+def printSortedScoresWithLabels(processes):
+  print(f" ~ Sorted Scores for Processes ~ ")
+  for label_and_score in range(len(processes)):
+    print(f"Process {label_and_score}: {processes[label_and_score]}")
+
+
+
+def getAllModelUnsortedRanks(processes, processes_ordered_labels):
+  all_ranks = []
+  for j in range(len(processes[0])):
+    model_rank = j
+    for i in range(1, len(processes)):
+      model_rank += processes_ordered_labels[i].index(processes_ordered_labels[0][j])
+    all_ranks.append((processes_ordered_labels[0][j], model_rank))
+  return all_ranks
+
+
+
+def getAllModelSortedRanks(all_model_unsorted_ranks):
+  all_model_unsorted_ranks_copy = all_model_unsorted_ranks.copy()
+  all_model_unsorted_ranks_copy.sort(key=lambda x:x[1])
+  return all_model_unsorted_ranks_copy
+
+
+
+def printAllSortedAndUnsortedRanks(all_model_unsorted_ranks, all_model_sorted_ranks):
+  print(" ~ Unsorted Ranks ~ ")
+  print(all_model_unsorted_ranks)
+  print(" ~ Sorted Ranks ~ ")
+  print(all_model_sorted_ranks)
+
+
+
+def getDataSortedByRankWithLabels(inProcesses, ranks):
+  processes = inProcesses.copy()
+  for process in processes:
+    for i in range(len(process)-1):
+      if process[i][0] != ranks[i]:
+        temp = process[i]
+        tempList = [x[0] for x in process]
+        process[i] = process[tempList.index(ranks[i])]
+        process[tempList.index(ranks[i])] = temp
+  return processes
+
+
+
+def getProcessesMeanNoisesWithLabels(ranked_noises_with_labels):
+  processes_mean_noise_with_labels = []
+  for noise in range(len(ranked_noises_with_labels[0])):
+    processes_mean_noise_with_labels.append((ranked_noises_with_labels[0][noise][0], (np.mean([process[noise][1] for process in ranked_noises_with_labels]))))
+  return processes_mean_noise_with_labels
+  
+  
+  
+  
+
+###############################################################################################################################################
+
+teachers = ["1:1", "1:2", "1:4", "2:1", "2:2", "2:4", "4:1", "4:2", "4:4"]
+
+
+# Mean Accuracy Data (1000 runs, teachers:students=above list, teachers test_size=0.2)
+new_a = [97.68,  97.72,  95.82,  97.51,  97.36,  97.81,  97.42,  97.10,  96.56]
+new_b = [97.73,  97.21,  96.76,  97.43,  96.88,  95.47,  97.26,  97.04,  96.73]
+new_c = [97.72,  97.40,  97.48,  97.45,  96.59,  96.84,  97.56,  97.14,  97.62]
+new_d = [97.74,  97.06,  95.71,  97.39,  97.66,  96.31,  97.56,  96.90,  95.95]
+new_e = [97.48,  96.69,  96.79,  97.57,  97.22,  96.99,  97.67,  97.88,  97.22]
+new_f = [97.50,  97.70,  96.86,  97.82,  97.56,  96.89,  97.60,  97.39,  96.60]
+new_g = [97.27,  97.07,  96.48,  97.63,  96.99,  96.58,  97.37,  96.78,  96.38]
+new_h = [97.36,  97.59,  97.66,  97.31,  97.95,  96.63,  97.53,  97.37,  96.58]
+new_i = [97.51,  98.20,  97.05,  97.38,  97.47,  96.58,  97.59,  97.11,  95.86]
+
+
+
+# NOISE DATA
+new_a_noise = [0.02,   0.09,  -0.00,   0.05,  -0.03,   0.04,  -0.03,   0.02,   0.02]
+new_b_noise = [-0.03,  -0.01,  -0.01,   0.01,  -0.05,   0.02,  -0.00,  -0.01,  -0.01]
+new_c_noise = [-0.07,   0.02,   0.02,   0.06,  -0.02,   0.07,   0.07,  -0.02,  -0.03]
+new_d_noise = [0.06,   0.10,   0.01,   0.06,   0.06,   0.03,  -0.04,   0.03,   0.01]
+new_e_noise = [-0.00,   0.08,   0.03,  -0.04,   0.06,  -0.05,  -0.03,   0.03,   0.04]
+new_f_noise = [-0.00,  -0.05,  -0.06,   0.01,   0.11,   0.07,  -0.03,   0.04,  -0.05]
+new_g_noise = [-0.04,  -0.08,   0.05,  -0.04,   0.00,  -0.02,  -0.03,  -0.01,  -0.03]
+new_h_noise = [-0.03,   0.02,  -0.00,  -0.04,   0.01,  -0.01,   0.09,  -0.01,   0.08]
+new_i_noise = [0.04,   0.02,   0.09,   0.06,   0.05,  -0.02,  -0.03,  -0.02,   0.07]
+
+
+
+# Mean accuracy data variables
+processes = [new_a, new_b, new_c, new_d, new_e, new_f, new_g, new_h, new_i]
+unsorted_processes_with_labels = getUnsortedScoresWithLabels(teachers, processes)
+sorted_processes_with_labels = getSortedScoresWithLabels(unsorted_processes_with_labels)
+processes_ordered_labels = getProcessesOrderedLabels(sorted_processes_with_labels)
+all_model_unsorted_ranks = getAllModelUnsortedRanks(processes, processes_ordered_labels)
+all_model_sorted_ranks = getAllModelSortedRanks(all_model_unsorted_ranks)
+# printAllSortedAndUnsortedRanks(all_model_unsorted_ranks, all_model_sorted_ranks)
+scores_sorted_by_rank = getDataSortedByRankWithLabels(sorted_processes_with_labels, [x[0] for x in all_model_sorted_ranks])
+
+
+
+# Dataframe for mean accuraies of 9 processes
+dfData = []
+for process in scores_sorted_by_rank:
+  dfData.append([x[1] for x in process])
+dfIndices = [f"Process {chr(65+x)}" for x in range(len(processes))]
+print(pd.DataFrame(data=dfData, columns=[x[0] for x in all_model_sorted_ranks], index=(dfIndices)))
+
+
+
+# Noise data variables
+processes_noise = [new_a_noise, new_b_noise, new_c_noise, new_d_noise, new_e_noise, new_f_noise, new_g_noise, new_h_noise, new_i_noise]
+unsorted_processes_noise_with_labels = getUnsortedScoresWithLabels(teachers, processes_noise)
+processes_noise_sorted_by_model_accuracy_rank = getDataSortedByRankWithLabels(unsorted_processes_noise_with_labels, [x[0] for x in all_model_sorted_ranks])
+processes_mean_noise_with_labels = getProcessesMeanNoisesWithLabels(processes_noise_sorted_by_model_accuracy_rank)
+
+
+
+# Rank vs Model Graph
+plt.title("Rank of Process' Models (based on mean accuracy)")
+plt.grid()
+plt.ylim(max([x[1] for x in all_model_sorted_ranks])+1, min([x[1] for x in all_model_sorted_ranks])-3)
+plt.xlabel('Teacher:Student Model Ratio')
+plt.ylabel('Rank')
+plt.scatter([x[0] for x in all_model_sorted_ranks], [x[1] for x in all_model_sorted_ranks])
+plt.plot([x[0] for x in all_model_sorted_ranks], [x[1] for x in all_model_sorted_ranks])
+plt.show()
+
+
+
+# Noise vs Model Graph
+plt.title("Mean Noise of Process' Models")
+plt.grid()
+plt.xlabel('Teacher:Student Model Ratio')
+plt.ylabel('Mean Noise')
+plt.scatter([x[0] for x in all_model_sorted_ranks], [x[1] for x in processes_mean_noise_with_labels])
+plt.plot([x[0] for x in all_model_sorted_ranks], [x[1] for x in processes_mean_noise_with_labels])
+plt.show()
+
+#np.std(new_e)
