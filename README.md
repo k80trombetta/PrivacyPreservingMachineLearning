@@ -1,10 +1,11 @@
 # privacyPreservingMachineLearning
 
 privacyPreservingMachineLearning builds and tests a supervised machine learning model that uses differntial privacy. It is inspired by the PATE model 
-(https://arxiv.org/abs/1802.08908) to make predictions about sensitive network traffic data, while preserving data privacy. The implementation uses 
-Scikit-Learn's Random Forest Classifier and Random Forest Regressor and tests models with varying ratios of "teachers" and "students" to find which 
-model configuration consistently makes predictions with the highest accuracy. This project uses Laplacian Noise, and data analytics tools to compare 
-the varying degree of model accuracies, and in addition, relates noise to those results.
+(https://arxiv.org/abs/1802.08908) to make predictions about sensitive network traffic data, while preserving data privacy. 
+
+The implementation uses Scikit-Learn's Random Forest Classifier and Random Forest Regressor and tests models with varying ratios of "teachers" and "students" to find which model configuration consistently makes predictions with the highest accuracy. 
+
+This project uses Laplacian Noise, and data analytics tools to compare the varying degree of model accuracies, and in addition, relates noise to those results.
 
 # Research
 
