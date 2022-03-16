@@ -13,3 +13,4 @@ I wrote the first draft of an academic research paper with intention to continue
 The paper documents the project purpose, details, and results. It is in progress and can be viewed on Google Docs.
 
 https://docs.google.com/document/d/1OfKujjr2bnezikw3YKO2Hlacu3uM4lMOkghuCKcS-Go/edit
+  
