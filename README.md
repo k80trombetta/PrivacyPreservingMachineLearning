@@ -5,7 +5,7 @@ privacyPreservingMachineLearning builds and tests a supervised machine learning 
 
 The implementation uses Scikit-Learn's Random Forest Classifier and Random Forest Regressor and tests models with varying ratios of "teachers" and "students" to find which model configuration consistently makes predictions with the highest accuracy. 
 
-This project uses Laplacian Noise, and data analytics tools to compare the varying degree of model accuracies, and in addition, relates noise to those results.
+This project uses Laplacian Noise and data analytics tools to compare the varying degree of model accuracies, and in addition, relates noise to those results.
 
 # Research
 
