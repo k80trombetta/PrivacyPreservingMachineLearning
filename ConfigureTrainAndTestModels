@@ -1,0 +1,565 @@
+"""
+Original file is located on Google Colab at
+    https://colab.research.google.com/drive/1wtp3pui-EXfkR6Q6PP8YoiX8tWxrk-SE
+"""
+
+#Dependencies
+import pandas as pd
+import numpy as np
+from collections import Counter
+from scipy import stats as st
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier
+from sklearn import metrics
+
+# Classes
+
+# Represent each teacher's and the student data, trained models, and predictions
+class ModelData:
+  def __init__(self, train, test, train_classes, test_classes):
+    self.train = train
+    self.test = test
+    self.train_classes = train_classes
+    self.test_classes = test_classes
+    self.model = None
+    self.prediction = None
+
+# Functions
+
+# Create and return ModelData object using the dataSet parameter
+# Parameters
+# data: a dataframe with class labels in last column
+# data_type: will be "Teacher" or "Student"
+# test_size: % of dataSet to save for testing
+def createModelData(data, data_type, test_size):
+  # Split data into train and test sets
+  train, test = train_test_split(data, test_size=test_size)
+
+  # Force equal size student train and test sets
+  if data_type == "Student" and len(train.index) != len(test.index):
+    test = test[:-1] 
+
+  # Create lists from class labels in train and test datasets
+  train_classes = train.iloc[:,15].tolist()
+  test_classes = test.iloc[:,15].tolist()
+
+  # Remove class labels from train and test set dataframes
+  train = train.drop(labels='class', axis=1)
+  test = test.drop(labels='class', axis=1)
+
+  return ModelData(train, test, train_classes, test_classes)
+
+
+
+def getAndprintMetrics(true_classes, predicted_classes):
+  MSE = metrics.mean_squared_error(true_classes, predicted_classes)
+  RMSE = np.sqrt(metrics.mean_squared_error(true_classes, predicted_classes))
+  mape_decimal = np.mean(np.abs((true_classes - predicted_classes) / np.abs(true_classes)))
+  MAPE = round(mape_decimal * 100, 2)
+  ACC = round(100*(1 - mape_decimal), 2)
+  
+  # print('Mean Squared Error (MSE):', MSE)
+  # print('Root Mean Squared Error (RMSE):', RMSE)
+  # print('Mean Absolute Percentage Error (MAPE):', MAPE)
+  # print('Accuracy:', ACC, "\n")
+
+  return (MSE, RMSE, MAPE, ACC)
+
+
+
+def runModelAndGetPredictions(metrics, noises, most_predicted, student, num_runs):
+  run_metrics = []
+  run_noises = []
+
+  for run in range(num_runs):
+    # Calculate Laplacian noise to be added to labels and verify value
+    noise = np.random.laplace()
+    # print("Noise:", noise, "\n")
+
+    # Train student model using most predicted labels from teachers and print metrics
+    noisy_prediction = [round(prediction + noise, 2) for prediction in most_predicted]
+    student_rfg = RandomForestRegressor(random_state=0)
+    student_rfg.fit(student.train, noisy_prediction)
+    student_rfg_predicted_classes = student_rfg.predict(student.test)
+
+    # make a copy before in place removal of noise from student_rfg_predicted_classes
+    quiet_prediction = student_rfg_predicted_classes.copy()
+
+    for i in range(len(quiet_prediction)):
+      quiet_prediction[i] = quiet_prediction[i] - noise
+
+    # print("STUDENT METRICS\n")
+    run_metrics.append((getAndprintMetrics(student.test_classes, quiet_prediction), noise))
+    run_noises.append(noise)
+
+  metrics.append(run_metrics)
+  noises.append(run_noises)
+
+ 
+
+# def printMetricsTotals(label, data):
+#   # print(label)
+#   # print(f"Average: {round(np.mean(data), 2)}\t", end='')
+#   # print(f"Median: {round(np.median(data), 2)}\t", end='')
+#   # print(f"Mode: {round(st.mode(data).mode[0], 2)}\t", end='')
+#   # print(f"Minimum: {round(min(data), 2)}\t", end='')
+#   # print(f"Maximum: {round(max(data), 2)}\n")
+
+
+
+def createGraphsForModels(metrics, num_runs, num_teachers, num_students, pair, student):
+  MSE = []
+  RMSE = []
+  MAPE = []
+  ACC = []
+  noise = []
+
+  # print(f"\nPAIR #{pair+1}\nSTUDENT {student+1}/{num_students}, {num_teachers} TEACHERS, {num_runs} RUNS\n")
+  for y in range(num_runs):
+    MSE.append(metrics[0][y][0][0])
+    RMSE.append(metrics[0][y][0][1])
+    MAPE.append(metrics[0][y][0][2])
+    ACC.append(metrics[0][y][0][3])
+    noise.append(metrics[0][y][1])
+
+  # x = np.arange(num_runs)  # the label locations
+  # plt.rc('axes', axisbelow=True)
+
+  # plt.title(f'Mean Squared Error (MSE) for {num_runs} Models with {num_teachers} Teachers & {num_students} Students')
+  # plt.ylim(min(MSE) - (min(MSE) * 0.005), max(MSE) + (max(MSE) * 0.005))
+  # plt.grid()
+  # plt.xlabel('Model #')
+  # plt.ylabel('MSE (%)')
+  # plt.scatter(x, MSE)
+  # plt.show()
+  # printMetricsTotals("MSE", MSE)
+
+  # plt.title(f'Root Mean Squared Error (RMSE) for {num_runs} Models with {num_teachers} Teachers & {num_students} Students')
+  # plt.ylim(min(RMSE) - (min(RMSE) * 0.005), max(RMSE) + (max(RMSE) * 0.005))
+  # plt.grid()
+  # plt.xlabel('Model #')
+  # plt.ylabel('RMSE (%)')
+  # plt.scatter(x, RMSE)
+  # plt.show()
+  # printMetricsTotals("RMSE", RMSE)
+
+  # plt.title(f'Mean Absolute Percentage Error (MAPE) for {num_runs} Models with {num_teachers} Teachers & {num_students} Students')
+  # plt.ylim(min(MAPE) - (min(MAPE) * 0.05), max(MAPE) + (max(MAPE) * 0.05))
+  # plt.grid()
+  # plt.xlabel('Model #')
+  # plt.ylabel('MAPE (%)')
+  # plt.scatter(x, MAPE)
+  # plt.show()
+  # printMetricsTotals("MAPE", MAPE)
+
+  # plt.title(f'Accuracy for {num_runs} Models with {num_teachers} Teachers & {num_students} Students')
+  # plt.ylim(min(ACC) - (min(ACC) * 0.001), max(ACC) + (max(ACC) * 0.001))
+  # plt.grid()
+  # plt.xlabel('Model #')
+  # plt.ylabel('Accuracy (%)')
+  # plt.scatter(x, ACC)
+  # plt.show()  
+  # printMetricsTotals("ACCURACY", ACC)
+
+
+
+def getStatsForStudents(student_metrics, students_noises):
+  allStudentAccuracies = [] 
+  allStudentNoises = []
+
+  for student in range(len(student_metrics[0])):
+    for run in range(len(student_metrics[0][student])):
+      allStudentAccuracies.append(student_metrics[0][student][run][0][3])
+      allStudentNoises.append(students_noises[0][student][run])
+  av = round(np.mean(allStudentAccuracies), 2)
+  med = round(np.median(allStudentAccuracies), 2)
+  mod = round(st.mode(allStudentAccuracies).mode[0], 2)
+  minimum = round(min(allStudentAccuracies), 2)
+  maximum = round(max(allStudentAccuracies), 2)
+  
+  av_noise = round(np.mean(allStudentNoises), 2)
+  med_noise = round(np.median(allStudentNoises), 2)
+  mod_noise = round(st.mode(allStudentNoises).mode[0], 2)
+  minimum_noise = round(min(allStudentNoises), 2)
+  maximum_noise = round(max(allStudentNoises), 2)
+
+  return [av, med, mod, minimum, maximum, av_noise, med_noise, mod_noise, minimum_noise, maximum_noise]
+
+
+# returns list of lists of tuples for each process' -> [  [ (teacher/student label, score), ... ], ...  ]
+def getUnsortedScoresWithLabels(teachers, processes):
+  all_processes_unsorted_scores_with_labels = []
+  for process in processes:
+    unsorted_scores_with_labels = []
+    for i in range(len(teachers)):
+      unsorted_scores_with_labels.append((teachers[i], process[i]))
+    all_processes_unsorted_scores_with_labels.append(unsorted_scores_with_labels)
+  return all_processes_unsorted_scores_with_labels
+
+
+
+# returns list of lists of tuples for each process' sorted in descending order of process' scores -> [  [ (teacher/student label, score), ... ], ...  ]
+def getSortedScoresWithLabels(processes):
+  all_processes_sorted_scores = []
+  for process in processes:
+    copied_scores = process.copy()
+    copied_scores.sort(key=lambda x:x[1], reverse=True)
+    all_processes_sorted_scores.append(copied_scores)
+  return all_processes_sorted_scores
+
+
+
+# returns list of lists of labels in descending order of process' scores -> [  [ label, ... ], ...  ]
+def getProcessesOrderedLabels(processes):
+  all_processes_ordered_labels = []
+  for process in processes:
+    labels = [label[0] for label in process]
+    all_processes_ordered_labels.append(labels)
+  return all_processes_ordered_labels
+
+
+
+# prints process number along with their sorted tuples of labels and scores
+def printSortedScoresWithLabels(processes):
+  print(f" ~ Sorted Scores for Processes ~ ")
+  for label_and_score in range(len(processes)):
+    print(f"Process {label_and_score}: {processes[label_and_score]}")
+
+
+
+def getAllModelUnsortedRanks(processes, processes_ordered_labels):
+  all_ranks = []
+  for j in range(len(processes[0])):
+    model_rank = j
+    for i in range(1, len(processes)):
+      model_rank += processes_ordered_labels[i].index(processes_ordered_labels[0][j])
+    all_ranks.append((processes_ordered_labels[0][j], model_rank))
+  return all_ranks
+
+
+
+def getAllModelSortedRanks(all_model_unsorted_ranks):
+  all_model_unsorted_ranks_copy = all_model_unsorted_ranks.copy()
+  all_model_unsorted_ranks_copy.sort(key=lambda x:x[1])
+  return all_model_unsorted_ranks_copy
+
+
+
+def printAllSortedAndUnsortedRanks(all_model_unsorted_ranks, all_model_sorted_ranks):
+  print(" ~ Unsorted Ranks ~ ")
+  print(all_model_unsorted_ranks)
+  print(" ~ Sorted Ranks ~ ")
+  print(all_model_sorted_ranks)
+
+
+
+def getDataSortedByRankWithLabels(inProcesses, ranks):
+  processes = inProcesses.copy()
+  for process in processes:
+    for i in range(len(process)-1):
+      if process[i][0] != ranks[i]:
+        temp = process[i]
+        tempList = [x[0] for x in process]
+        process[i] = process[tempList.index(ranks[i])]
+        process[tempList.index(ranks[i])] = temp
+  return processes
+
+
+
+def getProcessesMeanNoisesWithLabels(ranked_noises_with_labels):
+  processes_mean_noise_with_labels = []
+  for noise in range(len(ranked_noises_with_labels[0])):
+    processes_mean_noise_with_labels.append((ranked_noises_with_labels[0][noise][0], (np.mean([process[noise][1] for process in ranked_noises_with_labels]))))
+  return processes_mean_noise_with_labels
+
+def main(num_runs, num_teachers, num_students, teacher_test_sizes):
+
+  # Read the data in from shared google drive after mounting to drive
+  with open('Network Traffic Data.txt') as f:
+    lines = [[float(number) if "." in number else int(number) for number in line.strip().split(",")] for line in f.readlines() if line.strip() and not line.startswith('@')]
+  cols = ["dofM", "dofW", "weekend", "hofD", "mofH", "time", "traffic0", "traffic1", "delta1", "traffic2", "delta2", "traffic3", "delta3", "traffic4", "delta4", "class"]
+
+  # Create pandas data frame from data and label columns
+  df = pd.DataFrame(data=lines, columns=cols)
+  # print(df)
+
+  # Initially, split original data set 80% for teachers and 20% for student
+  teacher, student = train_test_split(df, test_size=0.2)
+
+  all_metrics = []
+  num_pairs = len(num_teachers)
+  # For dataframe print at end
+  final_acc_lables = []
+  final_acc_data = []
+  
+  # Executes for each pair of elements in num_teachers[] and num_students[]
+  for pair in range(num_pairs):
+    # these variables indicate the ratio of teacher:student for an iteration of the loop
+    numTeachers = num_teachers[pair]
+    numStudents = num_students[pair]
+
+    # Split sub-teachers and sub_students add all to "teachers" and "students" lists
+    teachers = np.array_split(teacher, numTeachers) if numTeachers > 1 else [teacher]
+    students = np.array_split(student, numStudents) if numStudents > 1 else [student]
+    
+    # Create ModelData instance for each teacher in "teachers" and reassign it as value in teachers[x], respectively
+    for teacher_i in range(numTeachers):
+      teachers[teacher_i] = createModelData(teachers[teacher_i], "Teacher", 0.2)
+   
+    for student_i in range(numStudents):
+      students[student_i] = createModelData(students[student_i], "Student", 0.5)
+  
+    # Train teacher(s) on data using random forest classifer, predict test labels, and print metrics
+    for teacher_i in teachers:
+      teacher_rfc = RandomForestClassifier(random_state=0)
+      teacher_rfc.fit(teacher_i.train, teacher_i.train_classes)
+      teacher_i.model = teacher_rfc
+      teacher_i.prediction = teacher_rfc.predict(teacher_i.test)
+      teacher_metrics = getAndprintMetrics(teacher_i.test_classes, teacher_i.prediction)  
+
+    # To hold each parents' predictions on each students' train data
+    all_teachers_predictions = []
+
+    # Each teacher makes predicitons on each students train data. 
+    # all_teachers_predictions = a list that contains numTeachers lists. Each of those lists contain
+    # numStudents lists of predictions. Access first teacher with array[0] and the prediction
+    # set on first student for that teacher with array[0][0]. Individual observation prediction would be
+    # array[0][0][0]
+    for teacher_i in teachers:
+      teacher_predictions = []
+      for student_i in students:
+        teacher_predictions.append(teacher_i.model.predict(student_i.train))
+      all_teachers_predictions.append(teacher_predictions)
+    
+    # To hold mode between each element in all_teachers_predictions at each index y
+    mode_predictions_for_all_students = []
+
+    students_metrics = []
+    students_noises = []
+    # Add mode between each teacher's predictions to "most_predicted" to form one prediciton list 
+    # We will use "most_predicted" as true labels for student test data
+    for student_i in range(numStudents):
+      mode_predictions_for_student = []
+      numPredictions = len(all_teachers_predictions[0][student_i])
+      for prediction_i in range(numPredictions):
+        each_teachers_prediction_for_student = []
+        for teacher_i in range(numTeachers):
+          each_teachers_prediction_for_student.append(all_teachers_predictions[teacher_i][student_i][prediction_i])
+        mode_predictions_for_student.append(Counter(each_teachers_prediction_for_student).most_common(1)[0][0])
+      mode_predictions_for_all_students.append(mode_predictions_for_student)
+
+      metrics = []
+      noises = []
+
+      # runModelAndGetPredictions(metrics_and_noise, mode_predictions_for_all_students[student_i], students[student_i], num_runs)
+      # all_metrics.append(metrics_and_noise)
+      # print(all_metrics[student_i])
+      # createGraphsForModels(all_metrics[student_i], num_runs, numTeachers, numStudents, pair, student_i)
+      runModelAndGetPredictions(metrics, noises, mode_predictions_for_all_students[student_i], students[student_i], num_runs)
+      createGraphsForModels(metrics, num_runs, numTeachers, numStudents, pair, student_i)
+      students_metrics.append(metrics)
+      students_noises.append(noises)
+    
+    final_acc_lables.append(str(f"{numTeachers}T/{numStudents}S"))
+    final_acc_data.append(getStatsForStudents(students_metrics, students_noises))
+
+  pd.set_option("display.max_rows", None, "display.max_columns", None)
+  final_acc_data = np.transpose(np.array(final_acc_data))
+  df_acc = pd.DataFrame(final_acc_data, columns = final_acc_lables, index=["Mean Accuracy", "Median Accuracy", "Mode Accuracy", "Min Accuracy", "Max Accuracy", 
+                                                                           "Mean Noise", "Median Noise", "Mode Noise", "Min Noise", "Max Noise"])
+  print(df_acc)
+
+
+num_runs = 1
+num_teachers = [1, 1, 1, 2, 2, 2, 4, 4, 4]
+num_students = [1, 2, 4, 1, 2, 4, 1, 2 ,4]
+teacher_test_sizes = [0.2, 0.2]
+
+main(num_runs, num_teachers, num_students, teacher_test_sizes)
+
+# new_a
+#                  1T/1S  1T/2S  1T/4S  2T/1S  2T/2S  2T/4S  4T/1S  4T/2S  4T/4S
+# Mean Accuracy    97.68  97.72  95.82  97.51  97.36  97.81  97.42  97.10  96.56
+# Median Accuracy  97.68  97.72  95.82  97.51  97.36  97.81  97.42  97.10  96.56
+# Mode Accuracy    97.68  97.72  95.81  97.52  97.38  97.80  97.45  97.09  96.55
+# Min Accuracy     97.62  97.63  95.66  97.44  97.29  97.71  97.34  97.01  96.39
+# Max Accuracy     97.75  97.80  95.97  97.58  97.44  97.94  97.48  97.17  96.71
+# Mean Noise        0.02   0.09  -0.00   0.05  -0.03   0.04  -0.03   0.02   0.02
+# Median Noise      0.00   0.04  -0.02   0.03   0.01   0.01  -0.02   0.01  -0.03
+# Mode Noise       -6.46  -5.43  -6.24  -6.06  -5.25  -5.99  -6.87  -5.64  -7.61
+# Min Noise        -6.46  -5.43  -6.24  -6.06  -5.25  -5.99  -6.87  -5.64  -7.61
+# Max Noise         8.35   9.24   5.08   8.35   6.46   9.46   6.36   7.20   7.06
+
+# new_b
+#                  1T/1S  1T/2S  1T/4S  2T/1S  2T/2S  2T/4S  4T/1S  4T/2S  4T/4S
+# Mean Accuracy    97.73  97.21  96.76  97.43  96.88  95.47  97.26  97.04  96.73
+# Median Accuracy  97.73  97.21  96.76  97.43  96.88  95.47  97.26  97.04  96.73
+# Mode Accuracy    97.73  97.23  96.75  97.39  96.87  95.44  97.26  97.04  96.73
+# Min Accuracy     97.64  97.14  96.64  97.35  96.79  95.32  97.19  96.95  96.61
+# Max Accuracy     97.80  97.27  96.90  97.49  96.97  95.61  97.33  97.12  96.88
+# Mean Noise       -0.03  -0.01  -0.01   0.01  -0.05   0.02  -0.00  -0.01  -0.01
+# Median Noise     -0.03  -0.02  -0.01  -0.01  -0.03   0.06  -0.04  -0.03  -0.01
+# Mode Noise       -5.41  -5.98  -7.50  -6.37  -5.58  -5.92  -5.58  -6.06  -7.53
+# Min Noise        -5.41  -5.98  -7.50  -6.37  -5.58  -5.92  -5.58  -6.06  -7.53
+# Max Noise         8.05   8.40   6.48   9.85   6.40   5.69   5.91   5.82   5.66
+
+# new_c
+#                  1T/1S  1T/2S  1T/4S  2T/1S  2T/2S  2T/4S  4T/1S  4T/2S  4T/4S
+# Mean Accuracy    97.72  97.40  97.48  97.45  96.59  96.84  97.56  97.14  97.62
+# Median Accuracy  97.72  97.40  97.48  97.45  96.59  96.84  97.56  97.14  97.62
+# Mode Accuracy    97.72  97.37  97.48  97.45  96.60  96.86  97.59  97.14  97.61
+# Min Accuracy     97.63  97.32  97.37  97.37  96.49  96.74  97.49  97.05  97.52
+# Max Accuracy     97.79  97.47  97.58  97.53  96.69  96.93  97.63  97.22  97.74
+# Mean Noise       -0.07   0.02   0.02   0.06  -0.02   0.07   0.07  -0.02  -0.03
+# Median Noise     -0.05   0.01  -0.04   0.03  -0.00   0.06   0.02   0.00  -0.03
+# Mode Noise       -6.91  -5.59  -7.93  -6.36  -6.99  -7.04  -5.93  -5.54  -7.58
+# Min Noise        -6.91  -5.59  -7.93  -6.36  -6.99  -7.04  -5.93  -5.54  -7.58
+# Max Noise         6.94   8.37   5.99   6.17   6.72   7.96   6.47   8.25   7.17
+
+# new_d
+#                  1T/1S  1T/2S  1T/4S  2T/1S  2T/2S  2T/4S  4T/1S  4T/2S  4T/4S
+# Mean Accuracy    97.74  97.06  95.71  97.39  97.66  96.31  97.56  96.90  95.95
+# Median Accuracy  97.74  97.06  95.71  97.39  97.66  96.31  97.56  96.90  95.95
+# Mode Accuracy    97.74  97.07  95.71  97.37  97.67  96.31  97.55  96.90  95.94
+# Min Accuracy     97.67  96.93  95.53  97.30  97.57  96.22  97.49  96.80  95.85
+# Max Accuracy     97.81  97.14  95.86  97.46  97.74  96.41  97.63  96.99  96.07
+# Mean Noise        0.06   0.10   0.01   0.06   0.06   0.03  -0.04   0.03   0.01
+# Median Noise      0.04   0.05   0.02   0.02   0.01   0.01  -0.02  -0.03   0.01
+# Mode Noise       -5.97  -5.24  -6.53  -7.04  -5.90  -6.05  -6.96  -4.95  -6.57
+# Min Noise        -5.97  -5.24  -6.53  -7.04  -5.90  -6.05  -6.96  -4.95  -6.57
+# Max Noise         7.06   5.52   6.46   6.63   6.79   7.13   7.21   8.78   5.83
+
+# new_e
+#                  1T/1S  1T/2S  1T/4S  2T/1S  2T/2S  2T/4S  4T/1S  4T/2S  4T/4S
+# Mean Accuracy    97.48  96.69  96.79  97.57  97.22  96.99  97.67  97.88  97.22
+# Median Accuracy  97.48  96.69  96.80  97.57  97.22  96.99  97.67  97.88  97.22
+# Mode Accuracy    97.49  96.67  96.80  97.57  97.21  96.99  97.64  97.88  97.20
+# Min Accuracy     97.41  96.59  96.68  97.48  97.15  96.85  97.60  97.82  97.06
+# Max Accuracy     97.55  96.79  96.97  97.66  97.29  97.16  97.74  97.95  97.34
+# Mean Noise       -0.00   0.08   0.03  -0.04   0.06  -0.05  -0.03   0.03   0.04
+# Median Noise     -0.01   0.09   0.04  -0.02   0.04  -0.01  -0.01   0.03   0.02
+# Mode Noise       -6.08  -7.04  -7.59  -8.37  -5.85  -6.47  -5.74  -5.94  -7.32
+# Min Noise        -6.08  -7.04  -7.59  -8.37  -5.85  -6.47  -5.74  -5.94  -7.32
+# Max Noise         5.93   5.75   6.76   7.11   7.14   8.96  10.46   6.63   7.16
+
+# new_f
+#                  1T/1S  1T/2S  1T/4S  2T/1S  2T/2S  2T/4S  4T/1S  4T/2S  4T/4S
+# Mean Accuracy    97.50  97.70  96.86  97.82  97.56  96.89  97.60  97.39  96.60
+# Median Accuracy  97.50  97.70  96.86  97.82  97.56  96.89  97.60  97.39  96.60
+# Mode Accuracy    97.51  97.68  96.86  97.83  97.58  96.88  97.59  97.40  96.60
+# Min Accuracy     97.43  97.59  96.76  97.73  97.46  96.74  97.52  97.31  96.46
+# Max Accuracy     97.57  97.78  96.98  97.89  97.65  97.02  97.69  97.49  96.75
+# Mean Noise       -0.00  -0.05  -0.06   0.01   0.11   0.07  -0.03   0.04  -0.05
+# Median Noise     -0.04  -0.04  -0.05   0.00   0.05   0.03  -0.01   0.01  -0.03
+# Mode Noise       -5.15  -6.78  -6.98  -6.11  -5.45  -5.62  -6.52  -6.14  -5.30
+# Min Noise        -5.15  -6.78  -6.98  -6.11  -5.45  -5.62  -6.52  -6.14  -5.30
+# Max Noise         5.84   8.78   8.46   5.55   6.26   7.39   8.43   6.24   5.58
+
+# new_g
+#                  1T/1S  1T/2S  1T/4S  2T/1S  2T/2S  2T/4S  4T/1S  4T/2S  4T/4S
+# Mean Accuracy    97.27  97.07  96.48  97.63  96.99  96.58  97.37  96.78  96.38
+# Median Accuracy  97.27  97.07  96.49  97.63  96.99  96.58  97.37  96.78  96.38
+# Mode Accuracy    97.29  97.10  96.49  97.66  97.00  96.60  97.32  96.80  96.39
+# Min Accuracy     97.20  96.99  96.37  97.56  96.92  96.45  97.30  96.70  96.28
+# Max Accuracy     97.34  97.15  96.61  97.70  97.06  96.71  97.43  96.87  96.47
+# Mean Noise       -0.04  -0.08   0.05  -0.04   0.00  -0.02  -0.03  -0.01  -0.03
+# Median Noise     -0.02  -0.06   0.06   0.01  -0.02  -0.02  -0.02  -0.04  -0.01
+# Mode Noise       -5.28  -6.28  -7.01  -9.35  -5.89  -6.01  -7.17  -5.58  -5.82
+# Min Noise        -5.28  -6.28  -7.01  -9.35  -5.89  -6.01  -7.17  -5.58  -5.82
+# Max Noise         6.21   5.97   5.41   6.17   6.60   5.81  10.18   7.70   6.92
+
+# new_h
+#                  1T/1S  1T/2S  1T/4S  2T/1S  2T/2S  2T/4S  4T/1S  4T/2S  4T/4S
+# Mean Accuracy    97.36  97.59  97.66  97.31  97.95  96.63  97.53  97.37  96.58
+# Median Accuracy  97.36  97.59  97.66  97.31  97.95  96.63  97.53  97.37  96.58
+# Mode Accuracy    97.34  97.59  97.67  97.32  97.93  96.64  97.55  97.36  96.58
+# Min Accuracy     97.28  97.50  97.55  97.19  97.88  96.48  97.46  97.29  96.43
+# Max Accuracy     97.43  97.70  97.75  97.40  98.03  96.73  97.59  97.46  96.77
+# Mean Noise       -0.03   0.02  -0.00  -0.04   0.01  -0.01   0.09  -0.01   0.08
+# Median Noise     -0.02  -0.00  -0.01  -0.06  -0.02  -0.00   0.05  -0.00   0.03
+# Mode Noise       -5.88  -7.26  -6.37  -6.74  -5.90  -5.70  -6.61  -5.75  -7.81
+# Min Noise        -5.88  -7.26  -6.37  -6.74  -5.90  -5.70  -6.61  -5.75  -7.81
+# Max Noise         5.83   7.66   7.88   6.93   6.36   6.12   8.52   6.87   5.60
+
+# new_i
+#                  1T/1S  1T/2S  1T/4S  2T/1S  2T/2S  2T/4S  4T/1S  4T/2S  4T/4S
+# Mean Accuracy    97.51  98.20  97.05  97.38  97.47  96.58  97.59  97.11  95.86
+# Median Accuracy  97.51  98.20  97.05  97.37  97.47  96.58  97.59  97.10  95.86
+# Mode Accuracy    97.53  98.18  97.06  97.36  97.50  96.58  97.57  97.10  95.86
+# Min Accuracy     97.44  98.11  96.91  97.32  97.39  96.44  97.51  97.01  95.66
+# Max Accuracy     97.58  98.27  97.18  97.44  97.55  96.71  97.66  97.20  96.02
+# Mean Noise        0.04   0.02   0.09   0.06   0.05  -0.02  -0.03  -0.02   0.07
+# Median Noise      0.06   0.06   0.04   0.03   0.01  -0.02  -0.05  -0.05   0.07
+# Mode Noise       -5.04  -8.42  -7.83  -6.56  -5.21  -5.06  -5.86  -5.78  -6.63
+# Min Noise        -5.04  -8.42  -7.83  -6.56  -5.21  -5.06  -5.86  -5.78  -6.63
+# Max Noise         5.78   7.82   7.88   6.27   7.13   5.65   5.54   5.33   5.09
+
+teacher_labels = ["1:1", "1:2", "1:4", "2:1", "2:2", "2:4", "4:1", "4:2", "4:4"]
+
+# Mean Accuracy Data (1000 runs, teachers:students=above list, teachers test_size=0.2)
+new_a = [97.68,  97.72,  95.82,  97.51,  97.36,  97.81,  97.42,  97.10,  96.56]
+new_b = [97.73,  97.21,  96.76,  97.43,  96.88,  95.47,  97.26,  97.04,  96.73]
+new_c = [97.72,  97.40,  97.48,  97.45,  96.59,  96.84,  97.56,  97.14,  97.62]
+new_d = [97.74,  97.06,  95.71,  97.39,  97.66,  96.31,  97.56,  96.90,  95.95]
+new_e = [97.48,  96.69,  96.79,  97.57,  97.22,  96.99,  97.67,  97.88,  97.22]
+new_f = [97.50,  97.70,  96.86,  97.82,  97.56,  96.89,  97.60,  97.39,  96.60]
+new_g = [97.27,  97.07,  96.48,  97.63,  96.99,  96.58,  97.37,  96.78,  96.38]
+new_h = [97.36,  97.59,  97.66,  97.31,  97.95,  96.63,  97.53,  97.37,  96.58]
+new_i = [97.51,  98.20,  97.05,  97.38,  97.47,  96.58,  97.59,  97.11,  95.86]
+
+# NOISE DATA
+new_a_noise = [0.02,   0.09,  -0.00,   0.05,  -0.03,   0.04,  -0.03,   0.02,   0.02]
+new_b_noise = [-0.03,  -0.01,  -0.01,   0.01,  -0.05,   0.02,  -0.00,  -0.01,  -0.01]
+new_c_noise = [-0.07,   0.02,   0.02,   0.06,  -0.02,   0.07,   0.07,  -0.02,  -0.03]
+new_d_noise = [0.06,   0.10,   0.01,   0.06,   0.06,   0.03,  -0.04,   0.03,   0.01]
+new_e_noise = [-0.00,   0.08,   0.03,  -0.04,   0.06,  -0.05,  -0.03,   0.03,   0.04]
+new_f_noise = [-0.00,  -0.05,  -0.06,   0.01,   0.11,   0.07,  -0.03,   0.04,  -0.05]
+new_g_noise = [-0.04,  -0.08,   0.05,  -0.04,   0.00,  -0.02,  -0.03,  -0.01,  -0.03]
+new_h_noise = [-0.03,   0.02,  -0.00,  -0.04,   0.01,  -0.01,   0.09,  -0.01,   0.08]
+new_i_noise = [0.04,   0.02,   0.09,   0.06,   0.05,  -0.02,  -0.03,  -0.02,   0.07]
+
+# Mean accuracy data variables
+processes = [new_a, new_b, new_c, new_d, new_e, new_f, new_g, new_h, new_i]
+unsorted_processes_with_labels = getUnsortedScoresWithLabels(teacher_labels, processes)
+sorted_processes_with_labels = getSortedScoresWithLabels(unsorted_processes_with_labels)
+processes_ordered_labels = getProcessesOrderedLabels(sorted_processes_with_labels)
+all_model_unsorted_ranks = getAllModelUnsortedRanks(processes, processes_ordered_labels)
+all_model_sorted_ranks = getAllModelSortedRanks(all_model_unsorted_ranks)
+# printAllSortedAndUnsortedRanks(all_model_unsorted_ranks, all_model_sorted_ranks)
+scores_sorted_by_rank = getDataSortedByRankWithLabels(sorted_processes_with_labels, [x[0] for x in all_model_sorted_ranks])
+
+# Dataframe for mean accuraies of 9 processes
+dfData = []
+for process in scores_sorted_by_rank:
+  dfData.append([x[1] for x in process])
+dfIndices = [f"Process {chr(65+x)}" for x in range(len(processes))]
+print(pd.DataFrame(data=dfData, columns=[x[0] for x in all_model_sorted_ranks], index=(dfIndices)))
+
+# Noise data variables
+processes_noise = [new_a_noise, new_b_noise, new_c_noise, new_d_noise, new_e_noise, new_f_noise, new_g_noise, new_h_noise, new_i_noise]
+unsorted_processes_noise_with_labels = getUnsortedScoresWithLabels(teacher_labels, processes_noise)
+processes_noise_sorted_by_model_accuracy_rank = getDataSortedByRankWithLabels(unsorted_processes_noise_with_labels, [x[0] for x in all_model_sorted_ranks])
+processes_mean_noise_with_labels = getProcessesMeanNoisesWithLabels(processes_noise_sorted_by_model_accuracy_rank)
+
+# Rank vs Model Graph
+plt.title("Rank of Process' Models (based on mean accuracy)")
+plt.grid()
+plt.ylim(max([x[1] for x in all_model_sorted_ranks])+1, min([x[1] for x in all_model_sorted_ranks])-3)
+plt.xlabel('Teacher:Student Model Ratio')
+plt.ylabel('Rank')
+plt.scatter([x[0] for x in all_model_sorted_ranks], [x[1] for x in all_model_sorted_ranks])
+plt.plot([x[0] for x in all_model_sorted_ranks], [x[1] for x in all_model_sorted_ranks])
+plt.show()
+
+# Noise vs Model Graph
+plt.title("Mean Noise of Process' Models")
+plt.grid()
+plt.xlabel('Teacher:Student Model Ratio')
+plt.ylabel('Mean Noise')
+plt.scatter([x[0] for x in all_model_sorted_ranks], [x[1] for x in processes_mean_noise_with_labels])
+plt.plot([x[0] for x in all_model_sorted_ranks], [x[1] for x in processes_mean_noise_with_labels])
+plt.show()
+
+#np.std(new_e)
